@@ -1,14 +1,12 @@
 package scaler
 
 import (
+	htime "github.com/urjitbhatia/gohumantime"
+	"github.com/zorkian/go-datadog-api"
 	"log"
 	"math"
 	"time"
-
-	htime "github.com/urjitbhatia/gohumantime"
-	"github.com/zorkian/go-datadog-api"
 )
-
 
 const (
 	lastTransform  = "last"
@@ -20,9 +18,10 @@ const (
 )
 
 type Scale struct {
-	Count     int
+	Count     int64
 	Threshold float64
 	Cooldown  bool
+	GroupName string
 }
 
 type Metric struct {
@@ -63,15 +62,28 @@ func ProcessMetric(metric Metric, client *datadog.Client) {
 func applyOperation(metric Metric, value float64) {
 
 	if value > metric.ScaleUp.Threshold {
-		log.Printf("Value: %f above threshold: %f\tWould have scaled UP by: %d instances",
+
+		log.Printf("Value: %f > threshold: %f\tWould scale UP by: %d instances",
 			value,
 			metric.ScaleUp.Threshold,
 			metric.ScaleUp.Count)
+		group := getASG(metric.ScaleUp.GroupName, false)
+		currentCapacity, _ := group.currentCapacity()
+		log.Println("Current capacity: ", currentCapacity)
+		group.scale(metric.ScaleUp.Count, false)
 	} else if value < metric.ScaleDown.Threshold {
-		log.Printf("Value: %f above threshold: %f\tWould have scaled DOWN by: %d instances",
+
+		log.Printf("Value: %f < threshold: %f\tWould scale DOWN by: %d instances",
 			value,
 			metric.ScaleDown.Threshold,
 			metric.ScaleDown.Count)
+		group := getASG(metric.ScaleUp.GroupName, false)
+		currentCapacity, _ := group.currentCapacity()
+		log.Println("Current capacity: ", currentCapacity)
+		group.scale(metric.ScaleDown.Count, false)
+	} else {
+		log.Printf("Value does not match threshold: %f < %f < %f",
+			metric.ScaleDown.Threshold, value, metric.ScaleUp.Threshold)
 	}
 }
 
