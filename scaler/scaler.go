@@ -80,7 +80,10 @@ func applyOperation(metric Metric, value float64) {
 		group := getASG(metric.ScaleUp.GroupName, false)
 		currentCapacity, _ := group.currentCapacity()
 		log.Println("Current capacity: ", currentCapacity)
-		group.scale(metric.ScaleDown.Count, false)
+		if metric.ScaleDown.Count > 0 {
+			metric.ScaleDown.Count = metric.ScaleDown.Count * -1
+		}
+		group.scale(metric.ScaleDown.Count, false) // Ensure that scale down is always -ve
 	} else {
 		log.Printf("Value does not match threshold: %f < %f < %f",
 			metric.ScaleDown.Threshold, value, metric.ScaleUp.Threshold)
