@@ -1,0 +1,35 @@
+ddApiKey: "datadog API key"
+ddAppKey: "datadog APP key"
+ddMetrics:
+  - metric: "Useful name for your metric"
+    query: "Metric query. Example: max:system.processes.cpu.pct{name:foo,process_name:bar}by{auto_scaling_group}"
+
+    # period to fetch data points from datadog for. See https://github.com/urjitbhatia/gohumantime for syntax
+    period: "2 minutes"
+
+    # The transformation to apply to the gathered data. Example: Avg will consider the average of the last 2 mins.
+    transform: "avg" # avg | max | min | sum | last | count
+
+    # The AWS region in which the autoscaling group exists. Example: us-east-1
+    awsRegion: "us-east-1"
+
+    # The autoscaling group to scale up/down
+    groupName: "my-autoscaling-group-name"
+
+    # The "ScaleUp" operation (Required section)
+    scaleUp:
+      # Number of instances to add
+      count: 2
+      # Trigger ScaleUp if the "Transformed" value is strictly > `threshold` value.
+      threshold: 70
+      # Honour cooldown
+      cooldown: true
+
+    # The "ScaleDown" operation (Required section)
+    scaleDown:
+      # Number of instances to remove from the autoscaling group
+      count: 1
+      # Trigger ScaleDown if the "Transformed" value is strictly < `threshold` value.
+      threshold: 50
+      # Honour cooldown
+      cooldown: true

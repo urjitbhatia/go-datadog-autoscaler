@@ -14,10 +14,10 @@ type AutoScalingGroup struct {
 	currentCapacity func() (int64, error)
 }
 
-func getASG(asgName string, verbose bool) *AutoScalingGroup {
+func getASG(asgName string, awsRegion string, verbose bool) *AutoScalingGroup {
 
 	var currentCap int64
-	svc := autoscaling.New(session.New(), &aws.Config{Region: aws.String("us-east-1")})
+	svc := autoscaling.New(session.New(), &aws.Config{Region: aws.String(awsRegion)})
 
 	currentCapacity := func() (int64, error) {
 		if currentCap != 0 {
