@@ -64,29 +64,29 @@ func applyOperation(metric Metric, value float64) {
 
 	if value > metric.ScaleUp.Threshold {
 
-		log.Printf("Value: %f > threshold: %f\tWould scale UP by: %d instances",
+		log.Printf("\nSCALER: Value: %f > threshold: %f\tWould scale UP by: %d instances",
 			value, metric.ScaleUp.Threshold, metric.ScaleUp.Count)
 
 		group := getASG(metric.GroupName, metric.AwsRegion, false)
 		currentCapacity, _ := group.currentCapacity()
-		log.Println("Current capacity: ", currentCapacity)
 
+		log.Printf("\nSCALER: Current capacity: %d Scaling to: %d", currentCapacity, currentCapacity+metric.ScaleDown.Count)
 		group.scale(metric.ScaleUp.Count, false)
 	} else if value < metric.ScaleDown.Threshold {
 
-		log.Printf("Value: %f < threshold: %f\tWould scale DOWN by: %d instances",
+		log.Printf("\nSCALER: Value: %f < threshold: %f\tWould scale DOWN by: %d instances",
 			value, metric.ScaleDown.Threshold, metric.ScaleDown.Count)
 
 		group := getASG(metric.GroupName, metric.AwsRegion, false)
 		currentCapacity, _ := group.currentCapacity()
-		log.Println("Current capacity: ", currentCapacity)
 
 		if metric.ScaleDown.Count > 0 {
 			metric.ScaleDown.Count = metric.ScaleDown.Count * -1
 		}
+		log.Printf("\nSCALER: Current capacity: %d Scaling to: %d", currentCapacity, currentCapacity+metric.ScaleDown.Count)
 		group.scale(metric.ScaleDown.Count, false) // Ensure that scale down is always -ve
 	} else {
-		log.Printf("Value does not match threshold: %f < %f < %f",
+		log.Printf("\nSCALER: Value does not match threshold: %f < %f < %f",
 			metric.ScaleDown.Threshold, value, metric.ScaleUp.Threshold)
 	}
 }
