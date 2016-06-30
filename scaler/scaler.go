@@ -70,7 +70,7 @@ func applyOperation(metric Metric, value float64) {
 		group := getASG(metric.GroupName, metric.AwsRegion, false)
 		currentCapacity, _ := group.currentCapacity()
 
-		log.Printf("\nSCALER: Current capacity: %d Scaling to: %d", currentCapacity, currentCapacity+metric.ScaleDown.Count)
+		log.Printf("\nSCALER: Current capacity: %d Scaling to: %d", currentCapacity, currentCapacity+metric.ScaleUp.Count)
 		group.scale(metric.ScaleUp.Count, false)
 	} else if value < metric.ScaleDown.Threshold {
 
