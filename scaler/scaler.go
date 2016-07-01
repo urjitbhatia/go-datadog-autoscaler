@@ -57,7 +57,7 @@ func ProcessMetric(metric Metric, client *datadog.Client) {
 	if err != nil {
 		log.Fatalf("fatal: %s\n", err)
 	}
-	applyOperation(metric, reduce(metric, matchedSeries[0]))
+	applyOperation(metric, Reduce(metric, matchedSeries[0]))
 }
 
 func applyOperation(metric Metric, value float64) {
@@ -91,32 +91,32 @@ func applyOperation(metric Metric, value float64) {
 	}
 }
 
-func reduce(metric Metric, series datadog.Series) (value float64) {
+func Reduce(metric Metric, series datadog.Series) (value float64) {
 	switch metric.Transform {
 	case avgTransform:
 		log.Println("applying avg transform")
-		gen := dataPointValueGenerator(series.Points)
+		gen := UnzipDataPoints(series.Points)
 		for val := range gen {
 			value = value + val
 		}
 		value = value / float64(len(series.Points))
 	case minTransform:
 		log.Println("applying min transform")
-		gen := dataPointValueGenerator(series.Points)
-		value := <-gen
+		gen := UnzipDataPoints(series.Points)
+		value = <-gen
 		for val := range gen {
 			value = math.Min(value, val)
 		}
 	case maxTransform:
 		log.Println("applying max transform")
-		gen := dataPointValueGenerator(series.Points)
-		value := <-gen
+		gen := UnzipDataPoints(series.Points)
+		value = <-gen
 		for val := range gen {
 			value = math.Max(value, val)
 		}
 	case sumTransform:
 		log.Println("applying sum transform")
-		gen := dataPointValueGenerator(series.Points)
+		gen := UnzipDataPoints(series.Points)
 		for val := range gen {
 			value = value + val
 		}
@@ -130,7 +130,7 @@ func reduce(metric Metric, series datadog.Series) (value float64) {
 	return
 }
 
-func dataPointValueGenerator(points []datadog.DataPoint) chan (float64) {
+func UnzipDataPoints(points []datadog.DataPoint) chan (float64) {
 	c := make(chan float64)
 
 	go func() {
@@ -141,4 +141,9 @@ func dataPointValueGenerator(points []datadog.DataPoint) chan (float64) {
 	}()
 
 	return c
+}
+
+func emitEvent(title, text, resource string, client *datadog.Client) {
+	event := &datadog.Event{}
+	client.PostEvent(event)
 }
