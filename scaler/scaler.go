@@ -1,11 +1,13 @@
 package scaler
 
 import (
-	htime "github.com/urjitbhatia/gohumantime"
-	"github.com/zorkian/go-datadog-api"
 	"log"
 	"math"
+	"sort"
 	"time"
+
+	htime "github.com/urjitbhatia/gohumantime"
+	"github.com/zorkian/go-datadog-api"
 )
 
 const (
@@ -15,6 +17,9 @@ const (
 	maxTransform   = "max"
 	sumTransform   = "sum"
 	countTransform = "count"
+
+	scaleTypeUp   = "UP"
+	scaleTypeDown = "DOWN"
 )
 
 type Scale struct {
@@ -23,6 +28,8 @@ type Scale struct {
 	Cooldown  bool
 }
 
+type Scales []Scale
+
 type Metric struct {
 	Name      string
 	Query     string
@@ -30,8 +37,8 @@ type Metric struct {
 	Transform string
 	AwsRegion string
 	GroupName string
-	ScaleUp   *Scale
-	ScaleDown *Scale
+	ScaleUp   Scales
+	ScaleDown Scales
 }
 
 func ProcessMetric(metric Metric, client *datadog.Client) {
@@ -57,38 +64,65 @@ func ProcessMetric(metric Metric, client *datadog.Client) {
 	if err != nil {
 		log.Fatalf("fatal: %s\n", err)
 	}
+	if len(matchedSeries) == 0 {
+		log.Fatalf("fatal: no matched series for given query\n")
+	}
 	applyOperation(metric, Reduce(metric, matchedSeries[0]))
 }
 
 func applyOperation(metric Metric, value float64) {
 
-	if value > metric.ScaleUp.Threshold {
-
-		log.Printf("\nSCALER: Value: %f > threshold: %f\tWould scale UP by: %d instances",
-			value, metric.ScaleUp.Threshold, metric.ScaleUp.Count)
-
-		group := getASG(metric.GroupName, metric.AwsRegion, false)
-		currentCapacity, _ := group.currentCapacity()
-
-		log.Printf("\nSCALER: Current capacity: %d Scaling to: %d", currentCapacity, currentCapacity+metric.ScaleUp.Count)
-		group.scale(metric.ScaleUp.Count, false)
-	} else if value < metric.ScaleDown.Threshold {
-
-		log.Printf("\nSCALER: Value: %f < threshold: %f\tWould scale DOWN by: %d instances",
-			value, metric.ScaleDown.Threshold, metric.ScaleDown.Count)
-
-		group := getASG(metric.GroupName, metric.AwsRegion, false)
-		currentCapacity, _ := group.currentCapacity()
-
-		if metric.ScaleDown.Count > 0 {
-			metric.ScaleDown.Count = metric.ScaleDown.Count * -1
-		}
-		log.Printf("\nSCALER: Current capacity: %d Scaling to: %d", currentCapacity, currentCapacity+metric.ScaleDown.Count)
-		group.scale(metric.ScaleDown.Count, false) // Ensure that scale down is always -ve
-	} else {
-		log.Printf("\nSCALER: Value does not match threshold: %f < %f < %f",
-			metric.ScaleDown.Threshold, value, metric.ScaleUp.Threshold)
+	scaleDirection := scaleTypeUp
+	scale, ok := projectIntoScale(metric.ScaleUp, value, scaleDirection)
+	if !ok {
+		scaleDirection = scaleTypeDown
+		scale, ok = projectIntoScale(metric.ScaleDown, value, scaleDirection)
 	}
+
+	if ok {
+		log.Printf("\nSCALER: Value: %f matches threshold: %f\tWould scale %s by: %d instances",
+			value, scale.Threshold, scaleDirection, scale.Count)
+
+		group := getASG(metric.GroupName, metric.AwsRegion, false)
+		currentCapacity, _ := group.currentCapacity()
+
+		log.Printf("\nSCALER: Current capacity: %d Scaling to: %d", currentCapacity, currentCapacity+scale.Count)
+		//		group.scale(scale.Count, false)
+
+	} else {
+		log.Printf("\nSCALER: Value does not match any scale threshold interval: %f", value)
+	}
+}
+
+func projectIntoScale(scales Scales, value float64, scaleDirection string) (*Scale, bool) {
+
+	var targetScale Scale
+	var found bool
+
+	log.Println("Checking scale direction", scaleDirection)
+	switch scaleDirection {
+	case scaleTypeUp:
+		sort.Sort(scales)
+		for _, scale := range scales {
+			if value > scale.Threshold {
+				targetScale = scale
+				found = true
+			} else {
+				break
+			}
+		}
+	case scaleTypeDown:
+		sort.Sort(sort.Reverse(scales))
+		for _, scale := range scales {
+			if value < scale.Threshold {
+				targetScale = scale
+				found = true
+			} else {
+				break
+			}
+		}
+	}
+	return &targetScale, found
 }
 
 func Reduce(metric Metric, series datadog.Series) (value float64) {
@@ -121,10 +155,10 @@ func Reduce(metric Metric, series datadog.Series) (value float64) {
 			value = value + val
 		}
 	case lastTransform:
-		log.Println("last transform")
+		log.Println("applying last transform")
 		value = series.Points[len(series.Points)-1][1]
 	case countTransform:
-		log.Println("count transform")
+		log.Println("applying count transform")
 		value = float64(len(series.Points))
 	}
 	return
@@ -146,4 +180,16 @@ func UnzipDataPoints(points []datadog.DataPoint) chan (float64) {
 func emitEvent(title, text, resource string, client *datadog.Client) {
 	event := &datadog.Event{}
 	client.PostEvent(event)
+}
+
+func (slice Scales) Len() int {
+	return len(slice)
+}
+
+func (slice Scales) Less(i, j int) bool {
+	return slice[i].Threshold < slice[j].Threshold
+}
+
+func (slice Scales) Swap(i, j int) {
+	slice[i], slice[j] = slice[j], slice[i]
 }

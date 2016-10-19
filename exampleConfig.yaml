@@ -18,18 +18,54 @@ ddMetrics:
 
     # The "ScaleUp" operation (Required section)
     scaleUp:
-      # Number of instances to add
-      count: 2
-      # Trigger ScaleUp if the "Transformed" value is strictly > `threshold` value.
-      threshold: 70
-      # Honour cooldown
-      cooldown: true
+        # Number of instances to add
+      - count: 5
+        # Trigger ScaleUp if the "Transformed" value is strictly > `threshold` value and < next higher threshold.
+        threshold: 90
+        # Honour cooldown
+        cooldown: true
+      - count: 3
+        # Trigger ScaleUp if the "Transformed" value is strictly > `threshold` value and < next higher threshold.
+        threshold: 80
+        # Honour cooldown
+        cooldown: true
+      - count: 2
+        # Trigger ScaleUp if the "Transformed" value is strictly > `threshold` value and < next higher threshold.
+        threshold: 70
+        # Honour cooldown
+        cooldown: true
 
     # The "ScaleDown" operation (Required section)
     scaleDown:
-      # Number of instances to remove from the autoscaling group
-      count: 1
-      # Trigger ScaleDown if the "Transformed" value is strictly < `threshold` value.
-      threshold: 50
-      # Honour cooldown
-      cooldown: true
+        # Number of instances to remove from the autoscaling group
+      - count: 1
+        # Trigger ScaleDown if the "Transformed" value is strictly < `threshold` value and > next lower threshold.
+        threshold: 60
+        # Honour cooldown
+        cooldown: true
+      - count: 2
+        # Trigger ScaleDown if the "Transformed" value is strictly < `threshold` value and > next lower threshold.
+        threshold: 50
+        # Honour cooldown
+        cooldown: true
+      - count: 4
+        # Trigger ScaleDown if the "Transformed" value is strictly < `threshold` value and > next lower threshold.
+        threshold: 40
+        # Honour cooldown
+        cooldown: true
+
+##############################################################
+# ScaleUP/DOWN thresholds are open intervals
+#
+# In the example above, consider the following metric values:
+#
+# 95 : Will scale UP by 5 for threshold 90 but below +Inf
+# 87 : Will scale UP by 3 for threshold 80 but below 90
+# 74 : Will scale UP by 2 for threshold 70 but below 80
+#
+# 65 : Will not have any effect
+#
+# 57 : Will scale DOWN by 1 for threshold 60 but above 50
+# 45 : Will scale DOWN by 2 for threshold 50 but above 40
+# 36 : Will scale DOWN by 4 for threshold 40 but above -Inf
+##############################################################
