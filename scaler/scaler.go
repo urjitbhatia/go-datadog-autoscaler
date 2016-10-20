@@ -18,8 +18,8 @@ const (
 	sumTransform   = "sum"
 	countTransform = "count"
 
-	scaleTypeUp   = "UP"
-	scaleTypeDown = "DOWN"
+	ScaleTypeUp   = "UP"
+	ScaleTypeDown = "DOWN"
 )
 
 type Scale struct {
@@ -72,11 +72,11 @@ func ProcessMetric(metric Metric, client *datadog.Client) {
 
 func applyOperation(metric Metric, value float64) {
 
-	scaleDirection := scaleTypeUp
-	scale, ok := projectIntoScale(metric.ScaleUp, value, scaleDirection)
+	scaleDirection := ScaleTypeUp
+	scale, ok := ProjectIntoScale(metric.ScaleUp, value, scaleDirection)
 	if !ok {
-		scaleDirection = scaleTypeDown
-		scale, ok = projectIntoScale(metric.ScaleDown, value, scaleDirection)
+		scaleDirection = ScaleTypeDown
+		scale, ok = ProjectIntoScale(metric.ScaleDown, value, scaleDirection)
 		// Ensure scale down count is always negative
 		if scale.Count > 0 {
 			scale.Count = scale.Count * -1
@@ -98,14 +98,14 @@ func applyOperation(metric Metric, value float64) {
 	}
 }
 
-func projectIntoScale(scales Scales, value float64, scaleDirection string) (*Scale, bool) {
+func ProjectIntoScale(scales Scales, value float64, scaleDirection string) (*Scale, bool) {
 
 	var targetScale Scale
 	var found bool
 
 	log.Println("Checking scale direction", scaleDirection)
 	switch scaleDirection {
-	case scaleTypeUp:
+	case ScaleTypeUp:
 		sort.Sort(scales)
 		for _, scale := range scales {
 			if value > scale.Threshold {
@@ -115,7 +115,7 @@ func projectIntoScale(scales Scales, value float64, scaleDirection string) (*Sca
 				break
 			}
 		}
-	case scaleTypeDown:
+	case ScaleTypeDown:
 		sort.Sort(sort.Reverse(scales))
 		for _, scale := range scales {
 			if value < scale.Threshold {
