@@ -77,6 +77,10 @@ func applyOperation(metric Metric, value float64) {
 	if !ok {
 		scaleDirection = scaleTypeDown
 		scale, ok = projectIntoScale(metric.ScaleDown, value, scaleDirection)
+		// Ensure scale down count is always negative
+		if scale.Count > 0 {
+			scale.Count = scale.Count * -1
+		}
 	}
 
 	if ok {
@@ -87,7 +91,7 @@ func applyOperation(metric Metric, value float64) {
 		currentCapacity, _ := group.currentCapacity()
 
 		log.Printf("\nSCALER: Current capacity: %d Scaling to: %d", currentCapacity, currentCapacity+scale.Count)
-		//		group.scale(scale.Count, false)
+		group.scale(scale.Count, false)
 
 	} else {
 		log.Printf("\nSCALER: Value does not match any scale threshold interval: %f", value)
