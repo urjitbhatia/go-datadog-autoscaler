@@ -87,10 +87,13 @@ func applyOperation(metric Metric, value float64) {
 		log.Printf("\nSCALER: Value: %f matches threshold: %f\tWould scale %s by: %d instances",
 			value, scale.Threshold, scaleDirection, scale.Count)
 
-		group := getASG(metric.GroupName, metric.AwsRegion, false)
-		currentCapacity, _ := group.currentCapacity()
+		group, err := getASG(metric.GroupName, metric.AwsRegion, false)
+		if err != nil {
+			log.Printf("Failed fetch group: %s with error: %+v. Skipping this group", metric.GroupName, err)
+			return
+		}
 
-		log.Printf("\nSCALER: Current capacity: %d Scaling to: %d", currentCapacity, currentCapacity+scale.Count)
+		log.Printf("\nSCALER: Current capacity: %d Scaling to: %d", group.currentCapacity, group.currentCapacity+scale.Count)
 		group.scale(scale.Count, false)
 
 	} else {

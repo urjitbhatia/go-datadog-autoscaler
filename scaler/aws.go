@@ -11,48 +11,50 @@ import (
 
 type AutoScalingGroup struct {
 	scale           func(scaleFactor int64, dryRun bool) error
-	currentCapacity func() (int64, error)
+	currentCapacity int64
 }
 
-func getASG(asgName string, awsRegion string, verbose bool) *AutoScalingGroup {
+func getASG(asgName string, awsRegion string, verbose bool) (*AutoScalingGroup, error) {
 
-	var currentCap int64
 	svc := autoscaling.New(session.New(), &aws.Config{Region: aws.String(awsRegion)})
 
-	currentCapacity := func() (int64, error) {
-		if currentCap != 0 {
-			return currentCap, nil
-		}
-		params := &autoscaling.DescribeAutoScalingGroupsInput{
-			AutoScalingGroupNames: []*string{
-				aws.String(asgName), // Required
-			},
-			MaxRecords: aws.Int64(1),
-		}
-		resp, err := svc.DescribeAutoScalingGroups(params)
+	// -------- Fetch the ASG from AWS --------
+	params := &autoscaling.DescribeAutoScalingGroupsInput{
+		AutoScalingGroupNames: []*string{
+			aws.String(asgName), // Required
+		},
+		MaxRecords: aws.Int64(1),
+	}
+	resp, err := svc.DescribeAutoScalingGroups(params)
 
-		if err != nil {
-			// Print the error, cast err to awserr.Error to get the Code and
-			// Message from an error.
-			fmt.Println(err.Error())
-			return -1, err
-		}
-
-		// Pretty-print the response data.
-		if verbose {
-			fmt.Println(resp)
-		}
-
-		group := resp.AutoScalingGroups[0]
-		currentCap = aws.Int64Value(group.DesiredCapacity)
-		return currentCap, nil
+	if err != nil {
+		// Print the error, cast err to awserr.Error to get the Code and
+		// Message from an error.
+		fmt.Println(err.Error())
+		return nil, err
 	}
 
-	scale := func(scaleFactor int64, dryRun bool) error {
-		current, err := currentCapacity()
+	// Pretty-print the response data.
+	if verbose {
+		fmt.Println(resp)
+	}
+	asg := resp.AutoScalingGroups[0]
+	// -------- We now have the ASG --------
 
-		if err != nil {
-			log.Fatalln("Error getting current group capacity")
+	scale := func(scaleFactor int64, dryRun bool) error {
+		current := aws.Int64Value(asg.DesiredCapacity)
+		desired := scaleFactor + current
+
+		min := aws.Int64Value(asg.MinSize)
+		max := aws.Int64Value(asg.MaxSize)
+
+		if desired < min {
+			log.Printf("Desired %d is less than group min size %d, setting to min", desired, min)
+			desired = min
+		}
+		if desired > max {
+			log.Printf("Desired %d is more than group max size %d, setting to max", desired, max)
+			desired = max
 		}
 
 		params := &autoscaling.SetDesiredCapacityInput{
@@ -81,6 +83,6 @@ func getASG(asgName string, awsRegion string, verbose bool) *AutoScalingGroup {
 
 	return &AutoScalingGroup{
 		scale,
-		currentCapacity,
-	}
+		aws.Int64Value(asg.DesiredCapacity),
+	}, nil
 }
