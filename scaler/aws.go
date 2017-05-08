@@ -59,8 +59,8 @@ func getASG(asgName string, awsRegion string, verbose bool) (*AutoScalingGroup, 
 		}
 
 		params := &autoscaling.SetDesiredCapacityInput{
-			AutoScalingGroupName: aws.String(asgName),              // Required
-			DesiredCapacity:      aws.Int64(scaleFactor + current), // Required
+			AutoScalingGroupName: aws.String(asgName), // Required
+			DesiredCapacity:      aws.Int64(desired),  // Required
 			HonorCooldown:        aws.Bool(true),
 		}
 
