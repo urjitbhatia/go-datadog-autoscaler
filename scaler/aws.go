@@ -57,6 +57,10 @@ func getASG(asgName string, awsRegion string, verbose bool) (*AutoScalingGroup, 
 			log.Printf("Desired %d is more than group max size %d, setting to max", desired, max)
 			desired = max
 		}
+		if desired == current {
+			log.Printf("Current size %d is same as desired: %d Nothing to do here", current, desired)
+			return nil
+		}
 
 		params := &autoscaling.SetDesiredCapacityInput{
 			AutoScalingGroupName: aws.String(asgName), // Required
