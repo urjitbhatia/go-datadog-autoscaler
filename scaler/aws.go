@@ -48,6 +48,7 @@ func getASG(asgName string, awsRegion string, verbose bool) (*AutoScalingGroup, 
 		min := aws.Int64Value(asg.MinSize)
 		max := aws.Int64Value(asg.MaxSize)
 
+		log.Printf("Desired: %d, Min: %d, Max: %d", desired, min, max)
 		if desired < min {
 			log.Printf("Desired %d is less than group min size %d, setting to min", desired, min)
 			desired = min
