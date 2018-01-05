@@ -1,1 +1,3 @@
 config.*
+glide.lock
+vendor
